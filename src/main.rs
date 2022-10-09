@@ -1,29 +1,70 @@
+use std::time::Instant;
+
 use hidapi;
+use rusb;
 
 // Mouse
-const DEVICE: (u16, u16, &str) = (0x2516, 0x0044, "");
+// const DEVICE: (u16, u16, &str) = (0x2516, 0x0044, "");
 
 // Spinny
-// const DEVICE: (u16, u16, &str) = (0x16c0, 0x27dc, "niche.london:Spinny-v0.1");
+const DEVICE: (u16, u16, &str) = (0x16c0, 0x27dc, "niche.london:Spinny-v0.1");
+
+// Joystick
+// const DEVICE: (u16, u16, &str) = (0x044F, 0xB10A, "");
 
 fn main() {
     let api = hidapi::HidApi::new().expect("Cannot start hidapi");
+    let (vid, pid, _) = DEVICE;
 
-    for device in api.device_list() {
+    let device_info = api
+        .device_list()
+        .filter(|info| info.vendor_id() == vid && info.product_id() == pid)
+        .next()
+        .expect("Could not find device");
+
+    println!(
+        "Device {:04X}:{:04X} - Usage Page: {:04X}h, Usage: {:04X}h, Interface: {},  serial: '{:?}', Manufacturer: {},",
+        device_info.vendor_id(),
+        device_info.product_id(),
+        device_info.usage_page(),
+        device_info.usage(),
+        device_info.interface_number(),
+        device_info.serial_number(),
+        device_info.manufacturer_string().unwrap_or_default(),
+    );
+
+    // Get the descriptors
+
+    let usb_device = rusb::devices()
+        .expect("Could not list USB devices")
+        .iter()
+        .find(|d| {
+            let descriptor = d
+                .device_descriptor()
+                .expect("could not read device descriptor");
+
+            descriptor.vendor_id() == vid && descriptor.product_id() == pid
+        })
+        .expect("Could not find device");
+
+    let usb_device_descriptor = usb_device
+        .device_descriptor()
+        .expect("could not read device descriptor");
+
+    println!("- Device descriptor: {:?}", usb_device_descriptor);
+    for cidx in 0..usb_device_descriptor.num_configurations() {
         println!(
-            "Device {:04X}:{:04X} - Usage Page: {:04X}h, Usage: {:04X}h, Interface: {},  serial: '{:?}', Manufacturer: {},",
-            device.vendor_id(),
-            device.product_id(),
-            device.usage_page(),
-            device.usage(),
-            device.interface_number(),
-            device.serial_number(),
-            device.manufacturer_string().unwrap_or_default(),
+            "  - Config descriptor {}: {:?}",
+            cidx,
+            usb_device
+                .config_descriptor(cidx)
+                .expect("could not read config descriptor")
         );
     }
 
-    let (vid, pid, _) = DEVICE;
-    let device = match api.open(vid, pid) {
+    // Open the device
+
+    let hid_device = match api.open(vid, pid) {
         Err(e) => {
             println!("Error opening: {:?}", e);
             return;
@@ -31,12 +72,17 @@ fn main() {
         Ok(d) => d,
     };
 
-    println!("Device open, reading...");
-
     let mut buf = [0u8; 64];
+    let mut last = Instant::now();
+    println!("\nDevice open, reading...");
+
     loop {
-        match device.read(&mut buf) {
-            Ok(n) => println!("Read: {:x?}", &buf[0..n]),
+        match hid_device.read(&mut buf) {
+            Ok(n) => {
+                let elapsed = last.elapsed().as_millis();
+                println!("[+{:06} ms]: {:02x?}", elapsed, &buf[0..n]);
+                last = Instant::now();
+            }
             Err(err) => println!("Can't read: {:?}", err),
         }
     }
