@@ -108,7 +108,7 @@ fn main() {
                     hid_descriptor = HIDDescriptor::new(interface_descriptor.extra());
 
                     println!(
-                        " - HID ({:04x}h) {} descriptor(s) type: {:02x}h length: {}",
+                        "  - HID ({:04x}h) {} descriptor(s) type: {:02x}h length: {}",
                         hid_descriptor.hid(),
                         hid_descriptor.num_descriptors(),
                         hid_descriptor.descriptor_type(),
@@ -129,13 +129,13 @@ fn main() {
 
                         let value: u16 = (descriptor_type as u16) << 8 | (descriptor_index as u16);
 
-                        println!(
-                            "Control request: request type {:08b}, request: 0x{:02x}, value:  {:02x} + {:08b} = {:016b}",
-                            request_type, request,
-                            descriptor_type,
-                            descriptor_index,
-                            value
-                        );
+                        // println!(
+                        //     "Control request: request type {:08b}, request: 0x{:02x}, value:  {:02x} + {:08b} = {:016b}",
+                        //     request_type, request,
+                        //     descriptor_type,
+                        //     descriptor_index,
+                        //     value
+                        // );
 
                         let mut buf = [0u8; 1024]; // Should be enough...
 
@@ -150,7 +150,7 @@ fn main() {
 
                         match result {
                             Ok(len) => {
-                                println!("Report descriptor: {:x?}", &buf[0..len]);
+                                println!("    HID Report descriptor: {:x?}", &buf[0..len]);
                             }
                             Err(err) => println!("Could not read Report descriptor {:?}", err),
                         }
@@ -161,7 +161,7 @@ fn main() {
 
                 for endpoint_descriptor in interface_descriptor.endpoint_descriptors() {
                     println!(
-                        "    - Endpoint ({} {:?})  {:?} descriptor: {:?}\n        Extra bytes: {:x?}",
+                        "    - Endpoint ({} {:?}) {:?} descriptor: {:?}\n        Extra bytes: {:x?}",
                         endpoint_descriptor.address(),
                         endpoint_descriptor.direction(),
                         endpoint_descriptor.transfer_type(),
