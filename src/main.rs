@@ -1,16 +1,19 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use hidapi;
-use rusb;
+use rusb::{self, constants::LIBUSB_REQUEST_GET_DESCRIPTOR};
 
 // Mouse
 // const DEVICE: (u16, u16, &str) = (0x2516, 0x0044, "");
 
+// Thrustmaster Joystick
+// const DEVICE: (u16, u16, &str) = (0x044F, 0xB10A, "");
+
+// Mad Katz Joystick
+const DEVICE: (u16, u16, &str) = (0x0738, 0x1302, "");
+
 // Spinny
 // const DEVICE: (u16, u16, &str) = (0x16c0, 0x27dc, "niche.london:Spinny-v0.1");
-
-// Joystick
-const DEVICE: (u16, u16, &str) = (0x044F, 0xB10A, "");
 
 fn main() {
     let api = hidapi::HidApi::new().expect("Cannot start hidapi");
@@ -38,6 +41,8 @@ fn main() {
         }
         Ok(d) => d,
     };
+
+    let mut hid_descriptor: HIDDescriptor;
 
     // Get the descriptors
 
@@ -100,7 +105,7 @@ fn main() {
                 );
 
                 if interface_descriptor.class_code() == 3 {
-                    let hid_descriptor = HIDDescriptor::new(interface_descriptor.extra());
+                    hid_descriptor = HIDDescriptor::new(interface_descriptor.extra());
 
                     println!(
                         " - HID ({:04x}h) {} descriptor(s) type: {:02x}h length: {}",
@@ -109,6 +114,49 @@ fn main() {
                         hid_descriptor.descriptor_type(),
                         hid_descriptor.descriptor_length()
                     );
+
+                    if let Some(device) = rusb::open_device_with_vid_pid(vid, pid) {
+                        // FIXME make this read _better_
+                        let request_type = rusb::request_type(
+                            rusb::Direction::In,
+                            rusb::RequestType::Standard,
+                            rusb::Recipient::Interface,
+                        );
+                        let request: u8 = LIBUSB_REQUEST_GET_DESCRIPTOR;
+
+                        let descriptor_type: u8 = 0x22; // Class descriptor, Report
+                        let descriptor_index: u8 = 0;
+
+                        let value: u16 = (descriptor_type as u16) << 8 | (descriptor_index as u16);
+
+                        println!(
+                            "Control request: request type {:08b}, request: 0x{:02x}, value:  {:02x} + {:08b} = {:016b}",
+                            request_type, request,
+                            descriptor_type,
+                            descriptor_index,
+                            value
+                        );
+
+                        let mut buf = [0u8; 1024]; // Should be enough...
+
+                        let result = device.read_control(
+                            request_type,
+                            request,
+                            value,
+                            interface_num as u16,
+                            &mut buf,
+                            Duration::from_millis(1500),
+                        );
+
+                        match result {
+                            Ok(len) => {
+                                println!("Report descriptor: {:x?}", &buf[0..len]);
+                            }
+                            Err(err) => println!("Could not read Report descriptor {:?}", err),
+                        }
+                    } else {
+                        println!("Could not open the device!");
+                    }
                 }
 
                 for endpoint_descriptor in interface_descriptor.endpoint_descriptors() {
@@ -124,13 +172,6 @@ fn main() {
             }
         }
     }
-
-    // TODO request the Report descriptor via rusb
-    // 1. open the device
-    // 2. calculate request type, using request_type(for direction, type and recipient)
-    // 3. use write_control to send request type and read the descriptor back
-
-    // Open the device
 
     let mut buf = [0u8; 64];
     let mut last = Instant::now();
