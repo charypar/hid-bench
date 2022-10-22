@@ -1,7 +1,9 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use hidapi;
-use rusb::{self, constants::LIBUSB_REQUEST_GET_DESCRIPTOR};
+use rusb;
+
+mod hid;
 
 // Mouse
 // const DEVICE: (u16, u16, &str) = (0x2516, 0x0044, "");
@@ -42,7 +44,7 @@ fn main() {
         Ok(d) => d,
     };
 
-    let mut hid_descriptor: HIDDescriptor;
+    let mut hid_descriptor: hid::Descriptor;
 
     // Get the descriptors
 
@@ -74,9 +76,9 @@ fn main() {
             .unwrap()
             .unwrap_or_default(),
         hid_device.get_product_string().unwrap().unwrap_or_default(),
-        // hid_device.get_serial_number_string().unwrap().unwrap_or_default(),
         usb_device_descriptor
     );
+
     for cidx in 0..usb_device_descriptor.num_configurations() {
         let config_descriptor = usb_device
             .config_descriptor(cidx)
@@ -105,54 +107,21 @@ fn main() {
                 );
 
                 if interface_descriptor.class_code() == 3 {
-                    hid_descriptor = HIDDescriptor::new(interface_descriptor.extra());
+                    hid_descriptor = hid::Descriptor::new(&interface_descriptor);
 
                     println!(
-                        "  - HID ({:04x}h) {} descriptor(s) type: {:02x}h length: {}",
+                        "  - HID ({:04x}h) {} descriptor(s)",
                         hid_descriptor.hid(),
                         hid_descriptor.num_descriptors(),
-                        hid_descriptor.descriptor_type(),
-                        hid_descriptor.descriptor_length()
                     );
 
-                    if let Some(device) = rusb::open_device_with_vid_pid(vid, pid) {
-                        // FIXME make this read _better_
-                        let request_type = rusb::request_type(
-                            rusb::Direction::In,
-                            rusb::RequestType::Standard,
-                            rusb::Recipient::Interface,
-                        );
-                        let request: u8 = LIBUSB_REQUEST_GET_DESCRIPTOR;
-
-                        let descriptor_type: u8 = 0x22; // Class descriptor, Report
-                        let descriptor_index: u8 = 0;
-
-                        let value: u16 = (descriptor_type as u16) << 8 | (descriptor_index as u16);
-
-                        // println!(
-                        //     "Control request: request type {:08b}, request: 0x{:02x}, value:  {:02x} + {:08b} = {:016b}",
-                        //     request_type, request,
-                        //     descriptor_type,
-                        //     descriptor_index,
-                        //     value
-                        // );
-
-                        let mut buf = [0u8; 1024]; // Should be enough...
-
-                        let result = device.read_control(
-                            request_type,
-                            request,
-                            value,
-                            interface_num as u16,
-                            &mut buf,
-                            Duration::from_millis(1500),
-                        );
-
-                        match result {
-                            Ok(len) => {
-                                println!("    HID Report descriptor: {:x?}", &buf[0..len]);
-                            }
-                            Err(err) => println!("Could not read Report descriptor {:?}", err),
+                    if let Ok(device) = usb_device.open() {
+                        for report_descriptor in hid_descriptor.report_descriptors(device) {
+                            println!(
+                                "    HID Report descriptor: {:x?} {:?}",
+                                report_descriptor,
+                                report_descriptor.basic_items().collect::<Vec<_>>()
+                            );
                         }
                     } else {
                         println!("Could not open the device!");
@@ -184,37 +153,10 @@ fn main() {
                 println!("[+{:06} ms]: {:02x?}", elapsed, &buf[0..n]);
                 last = Instant::now();
             }
-            Err(err) => println!("Can't read: {:?}", err),
+            Err(err) => {
+                println!("Can't read: {:?}", err);
+                break;
+            }
         }
-    }
-}
-
-struct HIDDescriptor<'a> {
-    bytes: &'a [u8],
-}
-
-impl<'a> HIDDescriptor<'a> {
-    fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes }
-    }
-
-    fn hid(&self) -> u16 {
-        ((self.bytes[3] as u16) << 8) | self.bytes[2] as u16
-    }
-
-    fn num_descriptors(&self) -> u8 {
-        self.bytes[5]
-    }
-
-    fn descriptor_type(&self) -> u8 {
-        // 0x21 - HID
-        // 0x22 - Report
-        // 0x23 - Physical
-        // 0x24..0x4F - Reserved
-        self.bytes[6]
-    }
-
-    fn descriptor_length(&self) -> u16 {
-        ((self.bytes[8] as u16) << 8) | self.bytes[7] as u16
     }
 }
