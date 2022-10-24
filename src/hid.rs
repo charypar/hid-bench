@@ -9,7 +9,7 @@ mod parser;
 
 use basic::BasicItems;
 
-use self::parser::ReportParser;
+pub use self::parser::ReportParser;
 
 #[derive(PartialEq, Debug)]
 pub enum DescriptorType {
@@ -161,5 +161,3 @@ impl ReportDescriptor {
         BasicItems::new(&self.bytes)
     }
 }
-
-// 2nd level, parse into ReportItems

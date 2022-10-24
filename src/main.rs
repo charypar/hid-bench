@@ -79,6 +79,8 @@ fn main() {
         usb_device_descriptor
     );
 
+    let mut report_parser: Option<hid::ReportParser> = None;
+
     for cidx in 0..usb_device_descriptor.num_configurations() {
         let config_descriptor = usb_device
             .config_descriptor(cidx)
@@ -124,6 +126,8 @@ fn main() {
                                 report_descriptor.basic_items().collect::<Vec<_>>(),
                             );
                             println!("    - Parser: {:?}", report_descriptor.decode());
+
+                            report_parser = Some(report_descriptor.decode());
                         }
                     } else {
                         println!("Could not open the device!");
@@ -153,6 +157,11 @@ fn main() {
             Ok(n) => {
                 let elapsed = last.elapsed().as_millis();
                 println!("[+{:06} ms]: {:02x?}", elapsed, &buf[0..n]);
+
+                if let Some(parser) = &report_parser {
+                    println!("Parsed: {:?}", parser.parse_input(&buf[0..n]));
+                }
+
                 last = Instant::now();
             }
             Err(err) => {

@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, num};
 
 use super::basic::{self, BasicItem, BasicItems};
 
@@ -14,14 +14,8 @@ impl ReportParser {
         }
     }
 
-    pub fn parse_input(report: &[u8]) -> Collection<Input> {
-        Collection {
-            collection_type: basic::Collection::Application,
-            usage: (0, 0),
-            designator_index: None,
-            string_index: None,
-            items: vec![],
-        }
+    pub fn parse_input(&self, input: &[u8]) -> Collection<Vec<Input>> {
+        self.collection.map(|report| report.parse(input))
     }
 
     // FIXME error handling
@@ -36,11 +30,9 @@ impl ReportParser {
         for item in basic_items {
             match item {
                 BasicItem::Global(item) => {
-                    Self::read_global_item(&mut state_table, &mut collection_stack, item);
+                    Self::read_global_item(&mut state_table, item);
                 }
-                BasicItem::Local(item) => {
-                    Self::read_local_item(&mut state_table, &mut collection_stack, item)
-                }
+                BasicItem::Local(item) => Self::read_local_item(&mut state_table, item),
                 BasicItem::Main(item) => match item {
                     basic::MainItem::Input(input) => Self::create_input_item(
                         &mut state_table,
@@ -102,11 +94,7 @@ impl ReportParser {
     }
 
     // FIXME error handling
-    fn read_global_item(
-        state_table: &mut StateTable,
-        collection_stack: &mut VecDeque<Collection<Report>>,
-        item: basic::GlobalItem,
-    ) {
+    fn read_global_item(state_table: &mut StateTable, item: basic::GlobalItem) {
         match item {
             basic::GlobalItem::UsagePage(up) => state_table.global.usage_page = Some(up),
             basic::GlobalItem::LogicalMinimum(lm) => state_table.global.logical_minimum = Some(lm),
@@ -133,11 +121,7 @@ impl ReportParser {
     }
 
     // FIXME error handling
-    fn read_local_item(
-        state_table: &mut StateTable,
-        collection_stack: &mut VecDeque<Collection<Report>>,
-        item: basic::LocalItem,
-    ) {
+    fn read_local_item(state_table: &mut StateTable, item: basic::LocalItem) {
         match item {
             basic::LocalItem::Usage(usage) => state_table.local.usages.push((None, Some(usage))),
             basic::LocalItem::UsageMinimum(um) => {
@@ -237,7 +221,7 @@ impl ReportParser {
             .items
             .push(CollectionItem::Item(report));
 
-        *bit_offset += (report_count * report_size);
+        *bit_offset += report_count * report_size;
         state_table.local = LocalItems::new();
     }
 
@@ -266,6 +250,33 @@ pub struct Collection<T> {
     designator_index: Option<u32>,
     string_index: Option<u32>,
     items: Vec<CollectionItem<T>>,
+}
+
+impl<T> Collection<T> {
+    pub fn map<O, F: Fn(&T) -> O>(&self, f: F) -> Collection<O>
+    where
+        F: Copy,
+        O: IntoIterator,
+    {
+        Collection {
+            collection_type: self.collection_type,
+            usage: self.usage,
+            designator_index: self.designator_index,
+            string_index: self.string_index,
+            items: self
+                .items
+                .iter()
+                .map(|item| match item {
+                    CollectionItem::Collection(c) => {
+                        let col = c.map(f);
+
+                        CollectionItem::Collection(col)
+                    }
+                    CollectionItem::Item(item) => CollectionItem::Item(f(item)),
+                })
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -359,7 +370,81 @@ struct Report {
 
 impl Report {
     fn parse(&self, report: &[u8]) -> Vec<Input> {
-        vec![]
+        if let ReportType::Input(flags) = self.report_type {
+            if (flags & 1) == 1 {
+                return vec![];
+            }
+        }
+
+        let spec_usages = self.usages.len();
+
+        (0..(self.report_count as usize))
+            .map(|i| {
+                let usage = if i < spec_usages {
+                    self.usages[i]
+                } else {
+                    // Usage Minimum specifies the usage to be associated with the first unassociated control
+                    // in the array or bitmap. Usage Maximum specifies the end of the range of usage values
+                    // to be associated with item elements.
+                    if let Some((up, u)) = self.usage_minimum {
+                        (up, u + spec_usages as u16 + i as u16)
+                    } else {
+                        // HID 1.11, section 6.2.2.8 Local Items
+                        //
+                        // While Local items do not carry over to the next Main item,
+                        // they may apply to more than one control within a single item.
+                        // For example, if an Input item defining five controls is
+                        // preceded by three Usage tags, the three usages would be
+                        // assigned sequentially to the first three controls, and the
+                        // third usage would also be assigned to the fourth and fifth controls.
+                        self.usages[self.usages.len() - 1]
+                    }
+                };
+
+                let offset = self.bit_offset + (self.report_size as usize * i);
+                let base_value = Self::extract_value(report, offset, self.report_size);
+
+                let value = match (self.logical_minimum, self.logical_maximum) {
+                    (0, 1) => InputValue::Bool(base_value != 0),
+                    (a, b) if a >= 0 && b >= 0 => InputValue::UInt(base_value),
+                    _ => InputValue::Int(Self::signed(base_value, self.report_size)),
+                };
+
+                Input { usage, value }
+            })
+            .collect()
+    }
+
+    fn signed(value: u32, length: u32) -> i32 {
+        let sign_mask = 1 << (length - 1);
+        let number_mask = !sign_mask; // is also the highest length-bit number
+
+        if value & sign_mask != 0 {
+            // TODO make sure this is right
+            ((value & number_mask) + number_mask + 1) as i32
+        } else {
+            (value & number_mask) as i32
+        }
+    }
+
+    fn extract_value(report: &[u8], bit_offset: usize, bit_length: u32) -> u32 {
+        let first_byte = bit_offset / 8; // first byte in which the value is
+        let last_byte = (bit_offset + bit_length as usize - 1) / 8;
+        let bit_shift = bit_offset % 8;
+
+        // TODO check bounds!
+        let bytes = &report[first_byte..=last_byte];
+
+        let mut value = 0u32;
+        for byte in 0..bytes.len() {
+            // numbers are little-endian!
+            value = value | ((bytes[byte as usize] as u32) << (8 * byte));
+        }
+
+        value = value >> bit_shift;
+        value = value & !(0xFFFFFFFFu32 << bit_length + 1);
+
+        value
     }
 }
 
@@ -375,11 +460,13 @@ impl ReportType {
 }
 
 // Represents a single input item in a report
+#[derive(Debug)]
 pub struct Input {
     usage: (u16, u16),
     value: InputValue,
 }
 
+#[derive(Debug)]
 pub enum InputValue {
     Bool(bool),
     UInt(u32),
@@ -394,7 +481,7 @@ pub struct FeatureItem {}
 
 #[cfg(test)]
 mod test {
-    use super::ReportParser;
+    use super::{Report, ReportParser};
     use crate::hid::basic::BasicItems;
 
     const JOYSTICK: [u8; 101] = [
@@ -408,17 +495,82 @@ mod test {
     ];
 
     #[test]
-    fn parses_basic_report_items() {
+    fn parses_basic_report_descriptor_items() {
         let basic_items = BasicItems::new(&JOYSTICK);
         println!("{:x?}", basic_items);
         println!("{:?}", basic_items.collect::<Vec<_>>());
     }
 
     #[test]
-    fn parses_a_report() {
+    fn parses_a_report_descriptor() {
         let basic_items = BasicItems::new(&JOYSTICK);
         let parser = ReportParser::new(basic_items);
 
         println!("{:#?}", parser);
+    }
+
+    #[test]
+    fn parses_an_input_report() {
+        let basic_items = BasicItems::new(&JOYSTICK);
+        let parser = ReportParser::new(basic_items);
+
+        let input_report = [0u8; 64];
+        let input = parser.parse_input(&input_report);
+
+        println!("{:#?}", input);
+    }
+
+    #[test]
+    fn extracts_single_bit_value() {
+        let report: [u8; 1] = [0b1];
+        let expected = 1;
+        let actual = Report::extract_value(&report, 0, 1);
+
+        assert_eq!(actual, expected);
+        let report: [u8; 1] = [0b10];
+        let expected = 1;
+        let actual = Report::extract_value(&report, 1, 1);
+
+        assert_eq!(actual, expected);
+
+        assert_eq!(actual, expected);
+        let report: [u8; 3] = [0b0, 0b0, 0b100];
+        let expected = 1;
+        let actual = Report::extract_value(&report, 18, 1);
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn extracts_multi_bit_value() {
+        let report: [u8; 1] = [0b101];
+        let expected = 5;
+        let actual = Report::extract_value(&report, 0, 3);
+
+        assert_eq!(actual, expected);
+
+        let report: [u8; 3] = [0b0, 0b0, 0b1010];
+        let expected = 5;
+        let actual = Report::extract_value(&report, 17, 3);
+
+        assert_eq!(actual, expected);
+
+        let report: [u8; 3] = [0b10000000, 0b10, 0b0];
+        let expected = 5;
+        let actual = Report::extract_value(&report, 7, 3);
+
+        assert_eq!(actual, expected);
+
+        let report: [u8; 3] = [0b10000000, 0b10, 0b00011];
+        let expected = 0b11000000101;
+        let actual = Report::extract_value(&report, 7, 11);
+
+        assert_eq!(actual, expected);
+
+        let report: [u8; 2] = [0b10, 0b1000_0000];
+        let expected = 0b10000000_0000001;
+        let actual = Report::extract_value(&report, 1, 15);
+
+        assert_eq!(actual, expected);
     }
 }

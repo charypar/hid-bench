@@ -104,7 +104,7 @@ pub struct FeatureItemData {
     pub data: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Collection {
     Physical,
     Application,
