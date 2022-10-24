@@ -12,10 +12,10 @@ mod hid;
 // const DEVICE: (u16, u16, &str) = (0x044F, 0xB10A, "");
 
 // Mad Katz Joystick
-const DEVICE: (u16, u16, &str) = (0x0738, 0x1302, "");
+// const DEVICE: (u16, u16, &str) = (0x0738, 0x1302, "");
 
 // Spinny
-// const DEVICE: (u16, u16, &str) = (0x16c0, 0x27dc, "niche.london:Spinny-v0.1");
+const DEVICE: (u16, u16, &str) = (0x16c0, 0x27dc, "niche.london:Spinny-v0.1");
 
 fn main() {
     let api = hidapi::HidApi::new().expect("Cannot start hidapi");
@@ -117,11 +117,13 @@ fn main() {
 
                     if let Ok(device) = usb_device.open() {
                         for report_descriptor in hid_descriptor.report_descriptors(device) {
+                            println!("    HID Report descriptor:");
+                            println!("    - Raw bytes: {:x?} ", report_descriptor,);
                             println!(
-                                "    HID Report descriptor: {:x?} {:?}",
-                                report_descriptor,
-                                report_descriptor.basic_items().collect::<Vec<_>>()
+                                "    - Basic items: {:?}",
+                                report_descriptor.basic_items().collect::<Vec<_>>(),
                             );
+                            println!("    - Parser: {:?}", report_descriptor.decode());
                         }
                     } else {
                         println!("Could not open the device!");
