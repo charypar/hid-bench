@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, num};
+use std::{collections::VecDeque, fmt::Display, num};
 
 use super::basic::{self, BasicItem, BasicItems};
 
@@ -473,6 +473,43 @@ pub enum InputValue {
     Bool(bool),
     UInt(u32),
     Int(i32),
+}
+
+impl Display for Input {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.value {
+            InputValue::Bool(b) => write!(f, "({:02x} {:02x}): {}", self.usage.0, self.usage.1, b),
+            InputValue::UInt(u) => write!(f, "({:02x} {:02x}): {}", self.usage.0, self.usage.1, u),
+            InputValue::Int(i) => write!(f, "({:02x} {:02x}): {}", self.usage.0, self.usage.1, i),
+        }
+    }
+}
+
+impl Display for Collection<Vec<Input>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let items_string = self
+            .items
+            .iter()
+            .map(|item| match item {
+                CollectionItem::Collection(c) => format!("{}", c),
+                CollectionItem::Item(inputs) => format!(
+                    "[{}]",
+                    inputs
+                        .iter()
+                        .map(|input| format!("{}", input))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        write!(
+            f,
+            "{:?}({:02x} {:02x})[{}]",
+            self.collection_type, self.usage.0, self.usage.1, items_string
+        )
+    }
 }
 
 // Not yet supported

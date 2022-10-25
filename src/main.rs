@@ -159,7 +159,7 @@ fn main() {
                 println!("[+{:06} ms]: {:02x?}", elapsed, &buf[0..n]);
 
                 if let Some(parser) = &report_parser {
-                    println!("Parsed: {:?}", parser.parse_input(&buf[0..n]));
+                    println!("            = {}", parser.parse_input(&buf[0..n]));
                 }
 
                 last = Instant::now();
