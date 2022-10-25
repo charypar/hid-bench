@@ -444,7 +444,7 @@ impl Report {
         }
 
         value = value >> bit_shift;
-        value = value & !(0xFFFFFFFFu32 << bit_length + 1);
+        value = value & !(0xFFFFFFFFu32 << bit_length);
 
         value
     }
@@ -576,6 +576,16 @@ mod test {
         let report: [u8; 3] = [0b0, 0b0, 0b100];
         let expected = 1;
         let actual = Report::extract_value(&report, 18, 1);
+
+        assert_eq!(actual, expected);
+
+        let expected = 0;
+        let actual = Report::extract_value(&report, 17, 1);
+
+        assert_eq!(actual, expected);
+
+        let expected = 0;
+        let actual = Report::extract_value(&report, 19, 1);
 
         assert_eq!(actual, expected);
     }
