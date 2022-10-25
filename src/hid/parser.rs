@@ -417,13 +417,15 @@ impl Report {
 
     fn signed(value: u32, length: u32) -> i32 {
         let sign_mask = 1 << (length - 1);
-        let number_mask = !sign_mask; // is also the highest length-bit number
+        let number_mask = !(0xFFFF_FFFF << (length - 1));
 
-        if value & sign_mask != 0 {
-            // TODO make sure this is right
-            ((value & number_mask) + number_mask + 1) as i32
+        let sign = value & sign_mask;
+        let unsinged_number = value & number_mask;
+
+        if sign != 0 {
+            (unsinged_number | !number_mask) as i32
         } else {
-            (value & number_mask) as i32
+            unsinged_number as i32
         }
     }
 
@@ -570,6 +572,35 @@ mod test {
         let report: [u8; 2] = [0b10, 0b1000_0000];
         let expected = 0b10000000_0000001;
         let actual = Report::extract_value(&report, 1, 15);
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn convert_any_bit_length_to_i32() {
+        let actual = Report::signed((!27u8 + 1) as u32, 8);
+        let expected = -27;
+
+        println!("-27i32: {:032b}", -27i32);
+        assert_eq!(actual, expected);
+
+        let actual = Report::signed((!1u8 + 1) as u32, 8);
+        let expected = -1;
+
+        assert_eq!(actual, expected);
+
+        let actual = Report::signed(1u8 as u32, 8);
+        let expected = 1;
+
+        assert_eq!(actual, expected);
+
+        let actual = Report::signed(127u8 as u32, 8);
+        let expected = 127;
+
+        assert_eq!(actual, expected);
+
+        let actual = Report::signed((!127u8 + 1) as u32, 8);
+        let expected = -127;
 
         assert_eq!(actual, expected);
     }
