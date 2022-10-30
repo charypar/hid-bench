@@ -40,7 +40,7 @@ fn main() {
         Ok(d) => d,
     };
 
-    let mut hid_descriptor: hid::Descriptor;
+    let mut hid_descriptor: hid::HidDescriptor;
 
     // Get the descriptors
 
@@ -75,7 +75,7 @@ fn main() {
         usb_device_descriptor
     );
 
-    let mut report_parser: Option<hid::ReportParser> = None;
+    let mut report_parser: Option<hid::Parser> = None;
 
     for cidx in 0..usb_device_descriptor.num_configurations() {
         let config_descriptor = usb_device
@@ -105,7 +105,7 @@ fn main() {
                 );
 
                 if interface_descriptor.class_code() == 3 {
-                    hid_descriptor = hid::Descriptor::new(&interface_descriptor);
+                    hid_descriptor = hid::HidDescriptor::new(&interface_descriptor);
 
                     println!(
                         "  - HID ({:04x}h) {} descriptor(s)",

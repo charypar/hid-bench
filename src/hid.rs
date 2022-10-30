@@ -1,15 +1,21 @@
 use std::time::Duration;
 
+// TODO hide rusb behind a feature flag
 use rusb::{
     self, constants::LIBUSB_REQUEST_GET_DESCRIPTOR, DeviceHandle, InterfaceDescriptor, UsbContext,
 };
 
 mod basic;
+mod collection;
+mod input;
 mod parser;
+mod report;
 
-use basic::BasicItems;
-
-pub use self::parser::ReportParser;
+pub use basic::{BasicItem, BasicItems};
+pub use collection::{Collection, CollectionItem};
+pub use input::Input;
+pub use parser::Parser;
+pub use report::Report;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum DescriptorType {
@@ -19,13 +25,29 @@ pub enum DescriptorType {
 }
 
 #[derive(Debug)]
-pub struct Descriptor<'a> {
+pub struct ReportDescriptor {
+    bytes: Vec<u8>,
+}
+
+impl ReportDescriptor {
+    pub fn decode(&self) -> Parser {
+        Parser::new(self.basic_items())
+    }
+
+    pub fn basic_items(&self) -> BasicItems {
+        BasicItems::new(&self.bytes)
+    }
+}
+
+#[derive(Debug)]
+pub struct HidDescriptor<'a> {
     interface_num: u8,
     bytes: &'a [u8],
 }
 
 // HID 1.11, section 6.2.1
-impl<'a> Descriptor<'a> {
+impl<'a> HidDescriptor<'a> {
+    // TODO hide behind rusb flag and offer construction from bytes and interface number
     pub fn new(interface_descriptor: &'a InterfaceDescriptor) -> Self {
         Self {
             interface_num: interface_descriptor.interface_number(),
@@ -41,6 +63,7 @@ impl<'a> Descriptor<'a> {
         self.bytes[5]
     }
 
+    // TODO hide behind rusb flag
     pub fn report_descriptors<T: UsbContext>(
         &self,
         device_handle: DeviceHandle<T>,
@@ -76,10 +99,11 @@ impl<'a> Descriptor<'a> {
 
 pub struct ReportDescriptors<'a, T: UsbContext> {
     index: u8,
-    hid_descriptor: &'a Descriptor<'a>,
+    hid_descriptor: &'a HidDescriptor<'a>,
     device_handle: DeviceHandle<T>,
 }
 
+// TODO hide behind rusb flag
 impl<'a, T: UsbContext> Iterator for ReportDescriptors<'a, T> {
     type Item = ReportDescriptor;
 
@@ -144,20 +168,5 @@ impl<'a, T: UsbContext> Iterator for ReportDescriptors<'a, T> {
                 None
             }
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct ReportDescriptor {
-    bytes: Vec<u8>,
-}
-
-impl ReportDescriptor {
-    pub fn decode(&self) -> ReportParser {
-        ReportParser::new(self.basic_items())
-    }
-
-    pub fn basic_items(&self) -> BasicItems {
-        BasicItems::new(&self.bytes)
     }
 }
