@@ -37,7 +37,7 @@ impl<'a> Iterator for BasicItems<'a> {
         let mut data = 0u32;
         for byte_idx in 0..size {
             // build up from little-endian ordered bytes
-            data = data | ((self.bytes[self.offset + 1 + byte_idx] as u32) << (byte_idx * 8));
+            data |= (self.bytes[self.offset + 1 + byte_idx] as u32) << (byte_idx * 8);
         }
 
         self.offset += size + 1;

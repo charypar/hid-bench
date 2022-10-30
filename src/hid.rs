@@ -11,9 +11,9 @@ use basic::BasicItems;
 
 pub use self::parser::ReportParser;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum DescriptorType {
-    HID = 0x21,
+    Hid = 0x21,
     Report = 0x22,
     Physical = 0x23,
 }
@@ -58,7 +58,7 @@ impl<'a> Descriptor<'a> {
         }
 
         match self.bytes[3 * index + 6] {
-            0x21 => Some(DescriptorType::HID),
+            0x21 => Some(DescriptorType::Hid),
             0x22 => Some(DescriptorType::Report),
             0x23 => Some(DescriptorType::Physical),
             _ => None,

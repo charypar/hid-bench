@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt::Display, num};
+use std::{collections::VecDeque, fmt::Display};
 
 use super::basic::{self, BasicItem, BasicItems};
 
@@ -8,7 +8,7 @@ pub struct ReportParser {
 }
 
 impl ReportParser {
-    pub fn new<'a>(basic_items: BasicItems<'a>) -> Self {
+    pub fn new(basic_items: BasicItems<'_>) -> Self {
         ReportParser {
             collection: Self::read_items(basic_items),
         }
@@ -116,7 +116,7 @@ impl ReportParser {
             basic::GlobalItem::Pop => {
                 todo!("Item state table stack is not yet implemented")
             }
-            basic::GlobalItem::Reserved => return,
+            basic::GlobalItem::Reserved => (),
         }
     }
 
@@ -141,13 +141,13 @@ impl ReportParser {
             }
             basic::LocalItem::Delimiter(_) => todo!("Delimiters are not yet implemented"),
             // Strings and designators not yet implemented
-            basic::LocalItem::DesignatorIndex(_) => return,
-            basic::LocalItem::DesignatorMinimum(_) => return,
-            basic::LocalItem::DesignatorMaximum(_) => return,
-            basic::LocalItem::StringIndex(_) => return,
-            basic::LocalItem::StringMinimum(_) => return,
-            basic::LocalItem::StringMaximum(_) => return,
-            basic::LocalItem::Reserved => return,
+            basic::LocalItem::DesignatorIndex(_) => (),
+            basic::LocalItem::DesignatorMinimum(_) => (),
+            basic::LocalItem::DesignatorMaximum(_) => (),
+            basic::LocalItem::StringIndex(_) => (),
+            basic::LocalItem::StringMinimum(_) => (),
+            basic::LocalItem::StringMaximum(_) => (),
+            basic::LocalItem::Reserved => (),
         }
     }
 
@@ -256,7 +256,6 @@ impl<T> Collection<T> {
     pub fn map<O, F: Fn(&T) -> O>(&self, f: F) -> Collection<O>
     where
         F: Copy,
-        O: IntoIterator,
     {
         Collection {
             collection_type: self.collection_type,
@@ -617,7 +616,7 @@ mod test {
         assert_eq!(actual, expected);
 
         let report: [u8; 2] = [0b10, 0b1000_0000];
-        let expected = 0b10000000_0000001;
+        let expected = 0b100_0000_0000_0001;
         let actual = Report::extract_value(&report, 1, 15);
 
         assert_eq!(actual, expected);

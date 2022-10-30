@@ -1,8 +1,5 @@
 use std::time::Instant;
 
-use hidapi;
-use rusb;
-
 mod hid;
 
 // Mouse
@@ -23,8 +20,7 @@ fn main() {
 
     let device_info = api
         .device_list()
-        .filter(|info| info.vendor_id() == vid && info.product_id() == pid)
-        .next()
+        .find(|info| info.vendor_id() == vid && info.product_id() == pid)
         .expect("Could not find device");
 
     println!(
