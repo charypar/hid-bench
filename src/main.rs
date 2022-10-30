@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use hid::{Collection, Input};
+
 mod hid;
 
 // Mouse
@@ -152,11 +154,17 @@ fn main() {
         match hid_device.read(&mut buf) {
             Ok(n) => {
                 let elapsed = last.elapsed().as_millis();
-                println!("[+{:06} ms]: {:02x?}", elapsed, &buf[0..n]);
-
-                if let Some(parser) = &report_parser {
-                    println!("            = {}", parser.parse_input(&buf[0..n]));
-                }
+                println!(
+                    "[+{:06} ms]: {:02x?} = {}",
+                    elapsed,
+                    &buf[0..n],
+                    if let Some(parser) = &report_parser {
+                        let collection = parser.parse_input(&buf[0..n]);
+                        print_report(&collection)
+                    } else {
+                        "??".to_string()
+                    }
+                );
 
                 last = Instant::now();
             }
@@ -166,4 +174,35 @@ fn main() {
             }
         }
     }
+}
+
+fn print_report(collection: &Collection<Vec<Input>>) -> String {
+    format!(
+        "[{}]",
+        collection
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                hid::CollectionItem::Collection(c) => Some(print_report(c)),
+                hid::CollectionItem::Item(inputs) => {
+                    if inputs.is_empty() {
+                        return None;
+                    }
+
+                    Some(
+                        inputs
+                            .iter()
+                            .map(|i| match i.value {
+                                hid::InputValue::Bool(v) => format!("{}", v),
+                                hid::InputValue::UInt(v) => format!("{}", v),
+                                hid::InputValue::Int(v) => format!("{}", v),
+                            })
+                            .collect::<Vec<_>>()
+                            .join(","),
+                    )
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }

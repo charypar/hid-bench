@@ -1,4 +1,9 @@
-use super::input::{Input, InputValue};
+use std::fmt::Debug;
+
+use super::{
+    basic::InputItemData,
+    input::{Input, InputValue},
+};
 
 // A single report, may read multiple inputs of the same configuration
 #[derive(Debug)]
@@ -21,8 +26,8 @@ pub struct Report {
 
 impl Report {
     pub fn parse(&self, report: &[u8]) -> Vec<Input> {
-        let ReportType::Input(flags) = self.report_type;
-        if (flags & 1) == 1 {
+        let ReportType::Input(input) = self.report_type;
+        if input.constant() {
             return vec![];
         }
 
@@ -102,15 +107,11 @@ impl Report {
 
 #[derive(Debug)]
 pub enum ReportType {
-    Input(u32),
+    Input(InputItemData),
     // TODO ready for other types of report
     //
     // Output(u32),
     // Feature(u32),
-}
-
-impl ReportType {
-    // TODO decoding of bit flags
 }
 
 #[cfg(test)]

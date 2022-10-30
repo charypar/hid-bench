@@ -153,7 +153,7 @@ impl Parser {
         bit_offset: &mut u32,
         input: InputItemData,
     ) {
-        let report_type = ReportType::Input(input.data);
+        let report_type = ReportType::Input(InputItemData { data: input.data });
         let usage_page = state_table.global.usage_page;
 
         let usages = state_table

@@ -1,5 +1,7 @@
 // 1st level: Parse basic items
 
+use std::fmt::{Debug, Display};
+
 #[derive(Debug)]
 pub struct BasicItems<'a> {
     bytes: &'a [u8],
@@ -89,9 +91,117 @@ impl MainItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy)]
 pub struct InputItemData {
     pub data: u32,
+}
+
+impl InputItemData {
+    pub fn data(&self) -> bool {
+        self.data & 1 == 0
+    }
+
+    pub fn constant(&self) -> bool {
+        !self.data()
+    }
+
+    pub fn array(&self) -> bool {
+        self.data & 2 == 0
+    }
+
+    pub fn variable(&self) -> bool {
+        !self.array()
+    }
+
+    pub fn absolute(&self) -> bool {
+        self.data & 2_u32.pow(2) == 0
+    }
+
+    pub fn relative(&self) -> bool {
+        !self.absolute()
+    }
+
+    pub fn no_wrap(&self) -> bool {
+        self.data & 2_u32.pow(3) == 0
+    }
+
+    pub fn wrap(&self) -> bool {
+        !self.no_wrap()
+    }
+
+    pub fn linear(&self) -> bool {
+        self.data & 2_u32.pow(4) == 0
+    }
+
+    pub fn non_linear(&self) -> bool {
+        !self.linear()
+    }
+
+    pub fn preferred(&self) -> bool {
+        self.data & 2_u32.pow(5) == 0
+    }
+
+    pub fn no_preferred(&self) -> bool {
+        !self.preferred()
+    }
+
+    pub fn no_null(&self) -> bool {
+        self.data & 2_u32.pow(6) == 0
+    }
+
+    pub fn null(&self) -> bool {
+        !self.no_null()
+    }
+
+    pub fn bit_field(&self) -> bool {
+        self.data & 2_u32.pow(8) == 0
+    }
+
+    pub fn buffered_bytes(&self) -> bool {
+        !self.bit_field()
+    }
+}
+
+impl Debug for InputItemData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl Display for InputItemData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            vec![
+                if self.data() { "Data" } else { "Const" },
+                if self.array() { "Array" } else { "Variable" },
+                if self.absolute() {
+                    "Absolute"
+                } else {
+                    "Relative"
+                },
+                if self.no_wrap() { "No Wrap" } else { "Wrap" },
+                if self.linear() { "Linear" } else { "Nonlinear" },
+                if self.preferred() {
+                    "Preferred State"
+                } else {
+                    "No Preferred State"
+                },
+                if self.no_null() {
+                    "No Null position"
+                } else {
+                    "Null state"
+                },
+                if self.bit_field() {
+                    "Bit Field"
+                } else {
+                    "Buffered Bytes"
+                },
+            ]
+            .join(",")
+        )
+    }
 }
 
 #[derive(Debug)]
