@@ -25,10 +25,10 @@ pub struct Report {
 }
 
 impl Report {
-    pub fn parse(&self, report: &[u8]) -> Vec<Input> {
+    pub fn parse(&self, report: &[u8]) -> Option<Vec<Input>> {
         let ReportType::Input(input) = self.report_type;
         if input.constant() {
-            return vec![];
+            return None;
         }
 
         let spec_usages = self.usages.len();
@@ -65,7 +65,7 @@ impl Report {
                     _ => InputValue::Int(Self::signed(base_value, self.report_size)),
                 };
 
-                Input { usage, value }
+                Some(Input { usage, value })
             })
             .collect()
     }

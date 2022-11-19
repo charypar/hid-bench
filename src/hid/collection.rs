@@ -15,7 +15,7 @@ pub struct Collection<T> {
 }
 
 impl<T> Collection<T> {
-    pub fn map<O, F: Fn(&T) -> O>(&self, f: F) -> Collection<O>
+    pub fn map<O, F: Fn(&T) -> Option<O>>(&self, f: F) -> Collection<O>
     where
         F: Copy,
     {
@@ -27,13 +27,13 @@ impl<T> Collection<T> {
             items: self
                 .items
                 .iter()
-                .map(|item| match item {
+                .filter_map(|item| match item {
                     CollectionItem::Collection(c) => {
                         let col = c.map(f);
 
-                        CollectionItem::Collection(col)
+                        Some(CollectionItem::Collection(col))
                     }
-                    CollectionItem::Item(item) => CollectionItem::Item(f(item)),
+                    CollectionItem::Item(item) => f(item).map(CollectionItem::Item),
                 })
                 .collect(),
         }
