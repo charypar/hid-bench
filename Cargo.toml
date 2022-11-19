@@ -7,3 +7,4 @@ edition = "2021"
 [dependencies]
 rusb = "0.9.1"
 hidapi = "1.4.2"
+insta = "1.21.1"

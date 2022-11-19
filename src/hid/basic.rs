@@ -324,6 +324,8 @@ impl LocalItem {
 
 #[cfg(test)]
 mod test {
+    use insta::assert_debug_snapshot;
+
     use super::BasicItems;
 
     const JOYSTICK: [u8; 101] = [
@@ -339,7 +341,8 @@ mod test {
     #[test]
     fn parses_basic_report_descriptor_items() {
         let basic_items = BasicItems::new(&JOYSTICK);
-        println!("{:x?}", basic_items);
-        println!("{:?}", basic_items.collect::<Vec<_>>());
+        let parsed = basic_items.collect::<Vec<_>>();
+
+        assert_debug_snapshot!(parsed);
     }
 }

@@ -1,0 +1,192 @@
+---
+source: src/hid/parser.rs
+expression: parser
+---
+Parser {
+    collection: Collection {
+        collection_type: Application,
+        usage: (
+            1,
+            4,
+        ),
+        designator_index: None,
+        string_index: None,
+        items: [
+            Collection(
+                Collection {
+                    collection_type: Physical,
+                    usage: (
+                        1,
+                        1,
+                    ),
+                    designator_index: None,
+                    string_index: None,
+                    items: [
+                        Item(
+                            Report {
+                                report_type: Input(
+                                    Data,Variable,Absolute,No Wrap,Linear,Preferred State,No Null position,Bit Field,
+                                ),
+                                usages: [
+                                    (
+                                        1,
+                                        48,
+                                    ),
+                                    (
+                                        1,
+                                        49,
+                                    ),
+                                ],
+                                usage_minimum: None,
+                                usage_maximum: None,
+                                logical_minimum: 0,
+                                logical_maximum: 1023,
+                                physical_minimum: 0,
+                                physical_maximum: 1023,
+                                unit: None,
+                                unit_exponent: None,
+                                bit_offset: 0,
+                                report_id: None,
+                                report_size: 10,
+                                report_count: 2,
+                            },
+                        ),
+                        Item(
+                            Report {
+                                report_type: Input(
+                                    Data,Variable,Absolute,No Wrap,Linear,Preferred State,No Null position,Bit Field,
+                                ),
+                                usages: [
+                                    (
+                                        1,
+                                        53,
+                                    ),
+                                ],
+                                usage_minimum: None,
+                                usage_maximum: None,
+                                logical_minimum: 0,
+                                logical_maximum: 255,
+                                physical_minimum: 0,
+                                physical_maximum: 255,
+                                unit: None,
+                                unit_exponent: None,
+                                bit_offset: 20,
+                                report_id: None,
+                                report_size: 8,
+                                report_count: 1,
+                            },
+                        ),
+                        Item(
+                            Report {
+                                report_type: Input(
+                                    Data,Variable,Absolute,No Wrap,Linear,Preferred State,No Null position,Bit Field,
+                                ),
+                                usages: [
+                                    (
+                                        1,
+                                        50,
+                                    ),
+                                    (
+                                        1,
+                                        54,
+                                    ),
+                                ],
+                                usage_minimum: None,
+                                usage_maximum: None,
+                                logical_minimum: 0,
+                                logical_maximum: 255,
+                                physical_minimum: 0,
+                                physical_maximum: 255,
+                                unit: None,
+                                unit_exponent: None,
+                                bit_offset: 28,
+                                report_id: None,
+                                report_size: 8,
+                                report_count: 2,
+                            },
+                        ),
+                        Item(
+                            Report {
+                                report_type: Input(
+                                    Data,Variable,Absolute,No Wrap,Linear,Preferred State,No Null position,Bit Field,
+                                ),
+                                usages: [],
+                                usage_minimum: Some(
+                                    (
+                                        9,
+                                        1,
+                                    ),
+                                ),
+                                usage_maximum: Some(
+                                    (
+                                        9,
+                                        14,
+                                    ),
+                                ),
+                                logical_minimum: 0,
+                                logical_maximum: 1,
+                                physical_minimum: 0,
+                                physical_maximum: 1,
+                                unit: None,
+                                unit_exponent: None,
+                                bit_offset: 44,
+                                report_id: None,
+                                report_size: 1,
+                                report_count: 14,
+                            },
+                        ),
+                        Item(
+                            Report {
+                                report_type: Input(
+                                    Data,Variable,Absolute,No Wrap,Linear,Preferred State,Null state,Bit Field,
+                                ),
+                                usages: [
+                                    (
+                                        1,
+                                        57,
+                                    ),
+                                ],
+                                usage_minimum: None,
+                                usage_maximum: None,
+                                logical_minimum: 1,
+                                logical_maximum: 8,
+                                physical_minimum: 0,
+                                physical_maximum: 315,
+                                unit: Some(
+                                    20,
+                                ),
+                                unit_exponent: None,
+                                bit_offset: 58,
+                                report_id: None,
+                                report_size: 4,
+                                report_count: 1,
+                            },
+                        ),
+                        Item(
+                            Report {
+                                report_type: Input(
+                                    Const,Array,Absolute,No Wrap,Linear,Preferred State,No Null position,Bit Field,
+                                ),
+                                usages: [],
+                                usage_minimum: None,
+                                usage_maximum: None,
+                                logical_minimum: 1,
+                                logical_maximum: 8,
+                                physical_minimum: 0,
+                                physical_maximum: 315,
+                                unit: Some(
+                                    20,
+                                ),
+                                unit_exponent: None,
+                                bit_offset: 62,
+                                report_id: None,
+                                report_size: 2,
+                                report_count: 1,
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ],
+    },
+}

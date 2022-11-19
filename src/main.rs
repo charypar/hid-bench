@@ -11,10 +11,10 @@ mod hid;
 // const DEVICE: (u16, u16, &str) = (0x044F, 0xB10A, "");
 
 // Mad Katz Joystick
-// const DEVICE: (u16, u16, &str) = (0x0738, 0x1302, "");
+const DEVICE: (u16, u16, &str) = (0x0738, 0x1302, "");
 
 // Spinny
-const DEVICE: (u16, u16, &str) = (0x16c0, 0x27dc, "niche.london:Spinny-v0.1");
+// const DEVICE: (u16, u16, &str) = (0x16c0, 0x27dc, "niche.london:Spinny-v0.1");
 
 fn main() {
     let api = hidapi::HidApi::new().expect("Cannot start hidapi");

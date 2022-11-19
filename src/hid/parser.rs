@@ -191,7 +191,7 @@ impl Parser {
             .unwrap_or(logical_minimum);
         let physical_maximum = state_table
             .global
-            .physical_minimum
+            .physical_maximum
             .unwrap_or(logical_maximum);
 
         let report = Report {
@@ -301,6 +301,8 @@ impl LocalItems {
 
 #[cfg(test)]
 mod test {
+    use insta::assert_debug_snapshot;
+
     use super::super::BasicItems;
     use super::Parser;
 
@@ -315,18 +317,11 @@ mod test {
     ];
 
     #[test]
-    fn parses_basic_report_descriptor_items() {
-        let basic_items = BasicItems::new(&JOYSTICK);
-        println!("{:x?}", basic_items);
-        println!("{:?}", basic_items.collect::<Vec<_>>());
-    }
-
-    #[test]
     fn parses_a_report_descriptor() {
         let basic_items = BasicItems::new(&JOYSTICK);
         let parser = Parser::new(basic_items);
 
-        println!("{:#?}", parser);
+        assert_debug_snapshot!(parser);
     }
 
     #[test]
@@ -338,5 +333,6 @@ mod test {
         let input = parser.parse_input(&input_report);
 
         println!("{:#?}", input);
+        assert_debug_snapshot!(input);
     }
 }

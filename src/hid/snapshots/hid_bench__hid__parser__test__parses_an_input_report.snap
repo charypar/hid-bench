@@ -1,0 +1,231 @@
+---
+source: src/hid/parser.rs
+expression: input
+---
+Collection {
+    collection_type: Application,
+    usage: (
+        1,
+        4,
+    ),
+    designator_index: None,
+    string_index: None,
+    items: [
+        Collection(
+            Collection {
+                collection_type: Physical,
+                usage: (
+                    1,
+                    1,
+                ),
+                designator_index: None,
+                string_index: None,
+                items: [
+                    Item(
+                        [
+                            Input {
+                                usage: (
+                                    1,
+                                    48,
+                                ),
+                                value: UInt(
+                                    0,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    1,
+                                    49,
+                                ),
+                                value: UInt(
+                                    0,
+                                ),
+                            },
+                        ],
+                    ),
+                    Item(
+                        [
+                            Input {
+                                usage: (
+                                    1,
+                                    53,
+                                ),
+                                value: UInt(
+                                    0,
+                                ),
+                            },
+                        ],
+                    ),
+                    Item(
+                        [
+                            Input {
+                                usage: (
+                                    1,
+                                    50,
+                                ),
+                                value: UInt(
+                                    0,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    1,
+                                    54,
+                                ),
+                                value: UInt(
+                                    0,
+                                ),
+                            },
+                        ],
+                    ),
+                    Item(
+                        [
+                            Input {
+                                usage: (
+                                    9,
+                                    1,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    2,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    3,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    4,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    5,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    6,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    7,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    8,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    9,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    10,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    11,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    12,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    13,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                            Input {
+                                usage: (
+                                    9,
+                                    14,
+                                ),
+                                value: Bool(
+                                    false,
+                                ),
+                            },
+                        ],
+                    ),
+                    Item(
+                        [
+                            Input {
+                                usage: (
+                                    1,
+                                    57,
+                                ),
+                                value: UInt(
+                                    0,
+                                ),
+                            },
+                        ],
+                    ),
+                    Item(
+                        [],
+                    ),
+                ],
+            },
+        ),
+    ],
+}
