@@ -59,10 +59,26 @@ impl Report {
                 let offset = self.bit_offset + (self.report_size as usize * i);
                 let base_value = Self::extract_value(report, offset, self.report_size);
 
+                let has_null = matches!(self.report_type, ReportType::Input(input) if input.null());
+
                 let value = match (self.logical_minimum, self.logical_maximum) {
                     (0, 1) => InputValue::Bool(base_value != 0),
-                    (a, b) if a >= 0 && b >= 0 => InputValue::UInt(base_value),
-                    _ => InputValue::Int(Self::signed(base_value, self.report_size)),
+                    (a, b) if (a, b) >= (0, 0) => {
+                        if has_null && (base_value as i32) < a || (base_value as i32) > b {
+                            InputValue::None
+                        } else {
+                            InputValue::UInt(base_value)
+                        }
+                    }
+                    (a, b) => {
+                        let value = Self::signed(base_value, self.report_size);
+
+                        if has_null && value < a || value > b {
+                            InputValue::None
+                        } else {
+                            InputValue::Int(value)
+                        }
+                    }
                 };
 
                 Some(Input { usage, value })

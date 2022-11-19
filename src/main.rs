@@ -196,6 +196,7 @@ fn print_report(collection: &Collection<Vec<Input>>) -> String {
                                 hid::InputValue::Bool(v) => format!("{}", v),
                                 hid::InputValue::UInt(v) => format!("{}", v),
                                 hid::InputValue::Int(v) => format!("{}", v),
+                                hid::InputValue::None => "None".to_string(),
                             })
                             .collect::<Vec<_>>()
                             .join(","),
