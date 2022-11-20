@@ -8,3 +8,5 @@ edition = "2021"
 rusb = "0.9.1"
 hidapi = "1.4.2"
 insta = "1.21.1"
+clap = { version = "4.0.26", features = ["derive"] }
+anyhow = "1.0.66"

@@ -26,7 +26,7 @@ pub enum DescriptorType {
 
 #[derive(Debug)]
 pub struct ReportDescriptor {
-    bytes: Vec<u8>,
+    pub bytes: Vec<u8>,
 }
 
 impl ReportDescriptor {
@@ -64,10 +64,13 @@ impl<'a> HidDescriptor<'a> {
     }
 
     // TODO hide behind rusb flag
-    pub fn report_descriptors<T: UsbContext>(
-        &self,
-        device_handle: DeviceHandle<T>,
-    ) -> ReportDescriptors<'_, T> {
+    pub fn report_descriptors<'s, T: UsbContext>(
+        &'s self,
+        device_handle: &'a DeviceHandle<T>,
+    ) -> ReportDescriptors<'_, T>
+    where
+        'a: 's,
+    {
         ReportDescriptors {
             index: 0,
             hid_descriptor: self,
@@ -100,7 +103,7 @@ impl<'a> HidDescriptor<'a> {
 pub struct ReportDescriptors<'a, T: UsbContext> {
     index: u8,
     hid_descriptor: &'a HidDescriptor<'a>,
-    device_handle: DeviceHandle<T>,
+    device_handle: &'a DeviceHandle<T>,
 }
 
 // TODO hide behind rusb flag

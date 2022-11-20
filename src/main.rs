@@ -1,179 +1,228 @@
-use std::time::Instant;
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
-use hid::{Collection, Input};
+use anyhow::{anyhow, Result};
+use clap::{Parser as ClapParser, Subcommand, ValueEnum};
 
 mod hid;
+use hid::{Collection, HidDescriptor, Input, Parser, ReportDescriptor};
+use hidapi::HidApi;
+use rusb::{Device, GlobalContext};
 
-// Mouse
-// const DEVICE: (u16, u16, &str) = (0x2516, 0x0044, "");
+#[derive(Debug, ClapParser)]
+#[command(name = "hid-bencch")]
+#[command(about = "USB HID test bencch", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
 
-// Thrustmaster Joystick
-// const DEVICE: (u16, u16, &str) = (0x044F, 0xB10A, "");
+#[derive(Debug, Subcommand)]
+enum Commands {
+    /// Lists USB HID devices
+    List,
+    /// Shows a report descriptor of a given device
+    Report {
+        #[arg(value_name = "VID:PID", long, short)]
+        device: String,
+        #[arg(value_enum, long, short)]
+        format: Option<ReportFormat>,
+    },
+    /// Logs input reports from the device
+    Log {
+        #[arg(value_name = "VID:PID", long, short)]
+        device: String,
+        #[arg(value_name = "INTERFACE_NUMBER", long, short)]
+        interface: String,
+        #[arg(value_enum, long, short)]
+        format: Option<LogFormat>,
+    },
+}
 
-// Mad Katz Joystick
-const DEVICE: (u16, u16, &str) = (0x0738, 0x1302, "");
+#[derive(ValueEnum, Debug, Clone, PartialEq, Eq)]
+enum ReportFormat {
+    Raw,
+    Items,
+    Parsed,
+}
 
-// Spinny
-// const DEVICE: (u16, u16, &str) = (0x16c0, 0x27dc, "niche.london:Spinny-v0.1");
+#[derive(ValueEnum, Debug, Clone, PartialEq, Eq)]
+enum LogFormat {
+    Raw,
+    Compact,
+    Full,
+}
 
-fn main() {
-    let api = hidapi::HidApi::new().expect("Cannot start hidapi");
-    let (vid, pid, _) = DEVICE;
+fn main() -> Result<()> {
+    let args = Cli::parse();
+    let cmd = args.command;
 
-    let device_info = api
-        .device_list()
-        .find(|info| info.vendor_id() == vid && info.product_id() == pid)
-        .expect("Could not find device");
+    if let Commands::List = cmd {
+        return cmd_list();
+    }
 
-    println!(
-        "HID Device {:04X}:{:04X} - Usage Page: {:04X}h, Usage: {:04X}h, Interface: {}",
-        device_info.vendor_id(),
-        device_info.product_id(),
-        device_info.usage_page(),
-        device_info.usage(),
-        device_info.interface_number(),
-    );
+    let hid_devices = hid_devices()?;
 
-    let hid_device = match api.open(vid, pid) {
-        Err(e) => {
-            println!("Error opening: {:?}", e);
-            return;
+    if let Commands::Report { device, format } = cmd {
+        let format = format.unwrap_or(ReportFormat::Items);
+        let (vid, pid) = parse_vid_pid(&device)?;
+
+        let usb_device = find_device(&hid_devices, vid, pid)
+            .ok_or_else(|| anyhow!("Could not find a HID device with vid {vid} pid {pid}"))?;
+        let report_descriptors = get_report_descriptors(usb_device)?;
+
+        return cmd_report(&report_descriptors, format);
+    }
+
+    if let Commands::Log {
+        device,
+        interface,
+        format,
+    } = cmd
+    {
+        let format = format.unwrap_or(LogFormat::Compact);
+        let (vid, pid) = parse_vid_pid(&device)?;
+        let interface: u8 =
+            str::parse(&interface).map_err(|_| anyhow!("Interface must be a number"))?;
+
+        let usb_device = find_device(&hid_devices, vid, pid)
+            .ok_or_else(|| anyhow!("Could not find a HID device with vid {vid} pid {pid}"))?;
+        let report_descriptors = get_report_descriptors(usb_device)?;
+        let parser = report_descriptors
+            .get(&interface)
+            .ok_or_else(|| anyhow!("Cannot find interface #{}", interface))?
+            .first()
+            .ok_or_else(|| anyhow!("No report descriptors for interface #{}", interface))?
+            .decode();
+
+        cmd_log(vid, pid, &parser, format)?;
+    }
+
+    Ok(())
+}
+
+fn cmd_list() -> Result<()> {
+    // FIXME do this with rusb instead
+    for device in hid_devices()?.iter() {
+        let descriptor = device.device_descriptor()?;
+
+        let handle = device.open()?;
+
+        let languages = handle.read_languages(Duration::from_millis(100))?;
+
+        if languages.is_empty() {
+            println!(
+                "[{:04X}:{:04X}]: <device does not support text descriptions>",
+                descriptor.vendor_id(),
+                descriptor.product_id(),
+            );
+            continue;
         }
-        Ok(d) => d,
-    };
 
-    let mut hid_descriptor: hid::HidDescriptor;
+        let language = languages
+            .first()
+            .expect("languages should not be empty at this point");
 
-    // Get the descriptors
-
-    let usb_device = rusb::devices()
-        .expect("Could not list USB devices")
-        .iter()
-        .find(|d| {
-            let descriptor = d
-                .device_descriptor()
-                .expect("could not read device descriptor");
-
-            descriptor.vendor_id() == vid && descriptor.product_id() == pid
-        })
-        .expect("Could not find device");
-
-    let usb_device_descriptor = usb_device
-        .device_descriptor()
-        .expect("could not read device descriptor");
-
-    println!(
-        "USB Device {:04X}:{:04X}: Class-Subclass-Proto {:02x}h-{:02x}h-{:02x}h - \"{}: {}\"\n  {:?}",
-        usb_device_descriptor.vendor_id(),
-        usb_device_descriptor.product_id(),
-        usb_device_descriptor.class_code(),
-        usb_device_descriptor.sub_class_code(),
-        usb_device_descriptor.protocol_code(),
-        hid_device
-            .get_manufacturer_string()
-            .unwrap()
-            .unwrap_or_default(),
-        hid_device.get_product_string().unwrap().unwrap_or_default(),
-        usb_device_descriptor
-    );
-
-    let mut report_parser: Option<hid::Parser> = None;
-
-    for cidx in 0..usb_device_descriptor.num_configurations() {
-        let config_descriptor = usb_device
-            .config_descriptor(cidx)
-            .expect("could not read config descriptor");
+        let vendor_string =
+            handle.read_manufacturer_string(*language, &descriptor, Duration::from_millis(100))?;
+        let product_string =
+            handle.read_product_string(*language, &descriptor, Duration::from_millis(100))?;
 
         println!(
-            "- Config descriptor extra: {:x?}",
-            config_descriptor.extra()
+            "[{:04X}:{:04X}]: \"{}: {}\"",
+            descriptor.vendor_id(),
+            descriptor.product_id(),
+            vendor_string,
+            product_string,
         );
+    }
 
-        for interface in config_descriptor.interfaces() {
-            let interface_num = interface.number();
+    Ok(())
+}
 
-            for interface_descriptor in interface.descriptors() {
-                if interface_descriptor.class_code() != 3 {
-                    continue;
+fn cmd_report(descriptors: &HashMap<u8, Vec<ReportDescriptor>>, fmt: ReportFormat) -> Result<()> {
+    for (interface_number, report_descriptors) in descriptors {
+        println!("Interface #{}", interface_number);
+
+        for descriptor in report_descriptors {
+            // TODO better formats
+            match fmt {
+                ReportFormat::Raw => println!("{:?}", descriptor.bytes),
+                ReportFormat::Items => {
+                    println!("{:?}", descriptor.basic_items().collect::<Vec<_>>())
                 }
-
-                println!(
-                    "  - Interface {} Class-Subclass-Proto: {:02x}h-{:02x}h-{:02x}\n      Extra bytes: {:x?}",
-                    interface_num,
-                    interface_descriptor.class_code(),
-                    interface_descriptor.sub_class_code(),
-                    interface_descriptor.protocol_code(),
-                    interface_descriptor.extra()
-                );
-
-                if interface_descriptor.class_code() == 3 {
-                    hid_descriptor = hid::HidDescriptor::new(&interface_descriptor);
-
-                    println!(
-                        "  - HID ({:04x}h) {} descriptor(s)",
-                        hid_descriptor.hid(),
-                        hid_descriptor.num_descriptors(),
-                    );
-
-                    if let Ok(device) = usb_device.open() {
-                        for report_descriptor in hid_descriptor.report_descriptors(device) {
-                            println!("    HID Report descriptor:");
-                            println!("    - Raw bytes: {:x?} ", report_descriptor,);
-                            println!(
-                                "    - Basic items: {:?}",
-                                report_descriptor.basic_items().collect::<Vec<_>>(),
-                            );
-                            println!("    - Parser: {:?}", report_descriptor.decode());
-
-                            report_parser = Some(report_descriptor.decode());
-                        }
-                    } else {
-                        println!("Could not open the device!");
-                    }
-                }
-
-                for endpoint_descriptor in interface_descriptor.endpoint_descriptors() {
-                    println!(
-                        "    - Endpoint ({} {:?}) {:?} descriptor: {:?}\n        Extra bytes: {:x?}",
-                        endpoint_descriptor.address(),
-                        endpoint_descriptor.direction(),
-                        endpoint_descriptor.transfer_type(),
-                        endpoint_descriptor,
-                        endpoint_descriptor.extra()
-                    );
-                }
+                ReportFormat::Parsed => println!("{:?}", descriptor.decode()),
             }
         }
     }
+
+    Ok(())
+}
+
+fn cmd_log(vid: u16, pid: u16, parser: &Parser, fmt: LogFormat) -> Result<()> {
+    let api = HidApi::new()?;
+    let hid_device = api.open(vid, pid)?;
 
     let mut buf = [0u8; 64];
     let mut last = Instant::now();
-    println!("\nDevice open, reading...");
 
     loop {
-        match hid_device.read(&mut buf) {
-            Ok(n) => {
-                let elapsed = last.elapsed().as_millis();
+        let n = hid_device.read(&mut buf)?;
+
+        let elapsed = last.elapsed().as_millis();
+        let bytes = &buf[0..n];
+
+        // TODO better formats
+        match fmt {
+            LogFormat::Raw => {
+                println!("[+{:06} ms]: {:02x?} ", elapsed, bytes);
+            }
+            LogFormat::Compact => {
                 println!(
                     "[+{:06} ms]: {:02x?} = {}",
                     elapsed,
-                    &buf[0..n],
-                    if let Some(parser) = &report_parser {
-                        let collection = parser.parse_input(&buf[0..n]);
-                        print_report(&collection)
-                    } else {
-                        "??".to_string()
-                    }
+                    bytes,
+                    print_report(&parser.parse_input(&buf[0..n]))
                 );
-
-                last = Instant::now();
             }
-            Err(err) => {
-                println!("Can't read: {:?}", err);
-                break;
+            LogFormat::Full => {
+                println!(
+                    "[+{:06} ms]: {:02x?} = {:?}",
+                    elapsed,
+                    bytes,
+                    &parser.parse_input(&buf[0..n])
+                );
             }
         }
+
+        last = Instant::now();
     }
+}
+
+fn parse_vid_pid(vidpid: &str) -> Result<(u16, u16)> {
+    let parts: Vec<u16> = vidpid
+        .split(':')
+        .map(|part| {
+            u16::from_str_radix(part, 16).map_err(|_| {
+                anyhow!("Device must be two 4-digit hexadecimal numbers separated by ':', e.g.  ")
+            })
+        })
+        .collect::<Result<_>>()?;
+
+    Ok((parts[0], parts[1]))
+}
+
+fn find_device(
+    devices: &[Device<GlobalContext>],
+    vid: u16,
+    pid: u16,
+) -> Option<&Device<GlobalContext>> {
+    devices.iter().find(|d| match d.device_descriptor() {
+        Ok(desc) => desc.vendor_id() == vid && desc.product_id() == pid,
+        _ => false,
+    })
 }
 
 fn print_report(collection: &Collection<Vec<Input>>) -> String {
@@ -206,4 +255,64 @@ fn print_report(collection: &Collection<Vec<Input>>) -> String {
             .collect::<Vec<_>>()
             .join(", ")
     )
+}
+
+fn hid_devices() -> Result<Vec<Device<GlobalContext>>> {
+    let mut devices = vec![];
+
+    for device in rusb::devices()?.iter() {
+        if !is_hid_device(&device)? {
+            continue;
+        }
+
+        devices.push(device);
+    }
+
+    Ok(devices)
+}
+
+fn is_hid_device(usb_device: &Device<GlobalContext>) -> Result<bool> {
+    let usb_device_descriptor = usb_device.device_descriptor()?;
+
+    for cidx in 0..usb_device_descriptor.num_configurations() {
+        let config_descriptor = usb_device.config_descriptor(cidx)?;
+
+        for interface in config_descriptor.interfaces() {
+            for interface_descriptor in interface.descriptors() {
+                if interface_descriptor.class_code() == 3 {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+
+    Ok(false)
+}
+
+fn get_report_descriptors(
+    usb_device: &Device<GlobalContext>,
+) -> Result<HashMap<u8, Vec<ReportDescriptor>>> {
+    let mut descriptors = HashMap::new();
+
+    let usb_device_descriptor = usb_device.device_descriptor()?;
+    let device_handle = usb_device.open()?;
+
+    for cidx in 0..usb_device_descriptor.num_configurations() {
+        let config_descriptor = usb_device.config_descriptor(cidx)?;
+
+        for interface in config_descriptor.interfaces() {
+            for interface_descriptor in interface.descriptors() {
+                if interface_descriptor.class_code() == 3 {
+                    let interface_num = interface_descriptor.interface_number();
+                    let hid_descriptor = HidDescriptor::new(&interface_descriptor);
+                    let report_descriptors =
+                        hid_descriptor.report_descriptors(&device_handle).collect();
+
+                    descriptors.insert(interface_num, report_descriptors);
+                }
+            }
+        }
+    }
+
+    Ok(descriptors)
 }
