@@ -5,11 +5,12 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use clap::{Parser as ClapParser, Subcommand, ValueEnum};
-
-mod hid;
-use hid::{Collection, HidDescriptor, Input, Parser, ReportDescriptor};
 use hidapi::HidApi;
 use rusb::{Device, GlobalContext};
+
+use hid_parser::{
+    Collection, CollectionItem, HidDescriptor, Input, InputValue, Parser, ReportDescriptor,
+};
 
 #[derive(Debug, ClapParser)]
 #[command(name = "hid-bencch")]
@@ -232,8 +233,8 @@ fn print_report(collection: &Collection<Vec<Input>>) -> String {
             .items
             .iter()
             .filter_map(|item| match item {
-                hid::CollectionItem::Collection(c) => Some(print_report(c)),
-                hid::CollectionItem::Item(inputs) => {
+                CollectionItem::Collection(c) => Some(print_report(c)),
+                CollectionItem::Item(inputs) => {
                     if inputs.is_empty() {
                         return None;
                     }
@@ -242,10 +243,10 @@ fn print_report(collection: &Collection<Vec<Input>>) -> String {
                         inputs
                             .iter()
                             .map(|i| match i.value {
-                                hid::InputValue::Bool(v) => format!("{}", v),
-                                hid::InputValue::UInt(v) => format!("{}", v),
-                                hid::InputValue::Int(v) => format!("{}", v),
-                                hid::InputValue::None => "None".to_string(),
+                                InputValue::Bool(v) => format!("{}", v),
+                                InputValue::UInt(v) => format!("{}", v),
+                                InputValue::Int(v) => format!("{}", v),
+                                InputValue::None => "None".to_string(),
                             })
                             .collect::<Vec<_>>()
                             .join(","),
