@@ -305,7 +305,8 @@ fn get_report_descriptors(
             for interface_descriptor in interface.descriptors() {
                 if interface_descriptor.class_code() == 3 {
                     let interface_num = interface_descriptor.interface_number();
-                    let hid_descriptor = HidDescriptor::new(&interface_descriptor);
+                    let hid_descriptor =
+                        HidDescriptor::from_interface_descriptor(&interface_descriptor);
                     let report_descriptors =
                         hid_descriptor.report_descriptors(&device_handle).collect();
 

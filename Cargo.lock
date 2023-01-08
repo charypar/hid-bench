@@ -127,8 +127,6 @@ name = "hid-parser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap",
- "hidapi",
  "insta",
  "rusb",
 ]
